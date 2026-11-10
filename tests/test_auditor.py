@@ -91,7 +91,9 @@ def test_skipped_criterion_becomes_inconclusive_and_unknown_ids_ignored():
 
 def _cls(**kw) -> Classification:
     base = dict(tiers=["high_risk_annex_iii"], annex_iii_area="5(b)", art_6_3_carve_out_applies=False,
-                role="deployer", fria_required=True, triggers=[], uncertainty_flags=[], rationale="r")
+                role="deployer", fria_required=True, triggers=[], uncertainty_flags=[], rationale="r",
+                evidence_indicates_financial_institution=True, evidence_indicates_personal_data=True,
+                evidence_indicates_automated_decisions=True, evidence_indicates_third_party_provider=True)
     base.update(kw)
     return Classification(**base)
 
@@ -156,12 +158,29 @@ def test_trail_detects_tampering(tmp_path):
     t = AuditTrail(tmp_path / "trail.jsonl", KEY)
     t.append("a", x=1)
     t.append("b", verdict="GAPS FOUND")
-    assert verify_trail(t.path, KEY)[0]
+    head = t.close("completed")
+    assert verify_trail(t.path, KEY, expected_head=head)[0]
     lines = t.path.read_text().splitlines()
-    t.path.write_text(lines[0] + "\n" + lines[1].replace("GAPS FOUND", "NO GAPS") + "\n")
+    t.path.write_text("\n".join([lines[0], lines[1].replace("GAPS FOUND", "NO GAPS"), lines[2]]) + "\n")
     ok, msg = verify_trail(t.path, KEY)
     assert not ok and "MAC" in msg
     assert not verify_trail(t.path, b"wrong-key-0123456789")[0]
+
+
+def test_trail_truncation_and_wrong_head_are_detected(tmp_path):
+    t = AuditTrail(tmp_path / "trail.jsonl", KEY)
+    for e in ("run_start", "llm_call", "result"):
+        t.append(e)
+    head = t.close("completed")
+    lines = t.path.read_text().splitlines()
+    t.path.write_text("\n".join(lines[:2]) + "\n")                       # cut off the end
+    ok, msg = verify_trail(t.path, KEY)
+    assert not ok and "run_end" in msg
+    t.path.write_text("\n".join(lines) + "\n")
+    assert verify_trail(t.path, KEY, expected_head=head)[0]
+    assert not verify_trail(t.path, KEY, expected_head="0" * 64)[0]
+    with pytest.raises(TrailError):
+        t.append("after_close")
 
 
 def test_trail_refuses_existing_file_and_short_key(tmp_path):
@@ -215,7 +234,8 @@ def test_end_to_end_injection_does_not_produce_green(tmp_path):
     assert result.classification.role == "deployer"                    # declared role wins over model
     assert any("Art. 27" in n for n in result.classification_notes)    # invented trigger flagged
     assert all(validate_finding(f) == [] for f in result.findings)
-    assert verify_trail(trail.path, KEY)[0]
+    head = trail.close("completed")
+    assert verify_trail(trail.path, KEY, expected_head=head)[0]
 
 
 def test_report_is_a_draft_with_signoff_and_escaped_cells():

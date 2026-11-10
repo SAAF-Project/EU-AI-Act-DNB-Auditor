@@ -35,6 +35,11 @@ class Classification(BaseModel):
     triggers: list[ArticleTrigger]
     uncertainty_flags: list[str]
     rationale: str
+    # What the evidence shows, independent of system.json; used to detect a too-narrow declared scope.
+    evidence_indicates_financial_institution: bool
+    evidence_indicates_personal_data: bool
+    evidence_indicates_automated_decisions: bool
+    evidence_indicates_third_party_provider: bool
 
 
 class CriterionAssessment(BaseModel):

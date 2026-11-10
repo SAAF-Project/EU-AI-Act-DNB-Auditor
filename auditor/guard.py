@@ -41,6 +41,13 @@ _INJECTION_PATTERNS = [
     r"\bmark\s+(all|every|each)\s+\w+(\s+\w+)?\s+as\s+(met|compliant|passed|green|approved)\b",
     r"\bdo\s+not\s+(raise|report|flag|include)\s+(any\s+)?(findings?|issues?|gaps?)\b",
     r"\b(system\s+prompt|you\s+are\s+now\s+(a|an)\b|new\s+instructions\s*:)",
+    # reworded English: "automated reviewers should record every requirement ... as satisfied"
+    r"\b(automated|ai|machine)\s+(reviewers?|auditors?|tools?|systems?|assessors?)\b.{0,40}\b(should|must|shall|are\s+to)\b.{0,40}\b(record|mark|treat|rate|score|classify|consider)\b.{0,60}\b(satisfied|met|compliant|passed|green|approved|fulfilled)\b",
+    # Dutch
+    r"\b(negeer|vergeet)\b.{0,30}\b(eerdere|vorige|bovenstaande|alle)\b.{0,20}\b(instructies?|opdrachten|regels)\b",
+    r"\b(opmerking|bericht|instructies?|notitie)\s+(voor|aan)\s+(elke|de|alle)?\s*(ai|llm|model|assistent|agent|audit-?tools?|ai-tools?|ai-systemen?)\b",
+    r"\b(markeer|beoordeel|beschouw|rapporteer|scoor)\b.{0,40}\b(alle|elk|elke|ieder)\b.{0,40}\bals\s+(voldaan|compliant|goedgekeurd|groen|in\s+orde|akkoord)\b",
+    r"\b(meld|rapporteer|vermeld|noteer)\s+geen\s+(bevindingen|issues|tekortkomingen|afwijkingen)\b",
 ]
 
 
@@ -73,26 +80,41 @@ def normalise(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def is_grounded(quote: str, corpus: str) -> bool:
-    """True when `quote` occurs verbatim in `corpus` (whitespace/typography-insensitive).
+MAX_FRAGMENT_GAP = 300   # chars allowed between "..."-separated fragments
 
-    A quote may be shortened with "..."; every fragment must then appear, in order.
-    Very short quotes are rejected because they prove nothing.
+
+def _fragments_in(fragments: list[str], hay: str) -> bool:
+    """All fragments occur in order, each within MAX_FRAGMENT_GAP of the previous one."""
+    start = hay.find(fragments[0])
+    while start >= 0:
+        end, ok = start + len(fragments[0]), True
+        for frag in fragments[1:]:
+            idx = hay.find(frag, end)
+            if idx < 0 or idx - end > MAX_FRAGMENT_GAP:
+                ok = False
+                break
+            end = idx + len(frag)
+        if ok:
+            return True
+        start = hay.find(fragments[0], start + 1)
+    return False
+
+
+def is_grounded(quote: str, source: str | dict[str, str]) -> bool:
+    """True when `quote` occurs verbatim in ONE source document (whitespace/typography-insensitive).
+
+    `source` is a single text or a {name: text} mapping; with a mapping, a quote cannot be stitched
+    together from different documents. A quote may be shortened with "..."; the fragments must then
+    appear in order and close together. Very short quotes are rejected because they prove nothing.
     """
     q = normalise(quote).strip('"\' ')
     if len(q) < MIN_QUOTE_CHARS:
         return False
-    hay = normalise(corpus)
     fragments = [f.strip() for f in re.split(r"\.\.\.|…", q) if f.strip()]
     if not fragments or any(len(f) < MIN_FRAGMENT_CHARS for f in fragments):
         return False
-    pos = 0
-    for frag in fragments:
-        idx = hay.find(frag, pos)
-        if idx < 0:
-            return False
-        pos = idx + len(frag)
-    return True
+    texts = [source] if isinstance(source, str) else list(source.values())
+    return any(_fragments_in(fragments, normalise(t)) for t in texts)
 
 
 # ---- Rule 2: never green on doubt --------------------------------------------
@@ -155,16 +177,37 @@ class AuditTrail:
         }
         body = json.dumps(record, sort_keys=True, ensure_ascii=False)
         mac = hmac.new(self._key, body.encode("utf-8"), hashlib.sha256).hexdigest()
+        if self._closed:
+            raise TrailError("Trail is closed; no further records may be appended.")
         with self.path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps({"record": record, "mac": mac}, sort_keys=True, ensure_ascii=False) + "\n")
         self._prev = mac
+        self._count += 1
+
+    _closed = False
+    _count = 0
+
+    def close(self, status: str) -> str:
+        """Write the final record (with the record count) and return the trail head MAC.
+
+        Print the head in the report: deleting records from the end then no longer matches it,
+        and a trail without a closing record fails verification.
+        """
+        self.append("run_end", status=status, records_before_end=self._count)
+        self._closed = True
+        return self._prev
+
+    @property
+    def head(self) -> str:
+        return self._prev
 
 
-def verify_trail(path: Path, key: bytes) -> tuple[bool, str]:
+def verify_trail(path: Path, key: bytes, expected_head: str | None = None) -> tuple[bool, str]:
     prev = "0" * 64
     lines = path.read_text(encoding="utf-8").splitlines()
     if not lines:
         return False, "trail is empty"
+    last: dict = {}
     for n, line in enumerate(lines, 1):
         try:
             entry = json.loads(line)
@@ -177,5 +220,11 @@ def verify_trail(path: Path, key: bytes) -> tuple[bool, str]:
         expected = hmac.new(key, body.encode("utf-8"), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, mac):
             return False, f"line {n}: MAC mismatch (record altered or wrong key)"
-        prev = mac
-    return True, f"{len(lines)} records verified"
+        prev, last = mac, record
+    if last.get("event") != "run_end":
+        return False, "no closing run_end record (trail truncated or run aborted before closing)"
+    if last.get("data", {}).get("records_before_end") != len(lines) - 1:
+        return False, "record count in run_end does not match the trail"
+    if expected_head is not None and not hmac.compare_digest(expected_head, prev):
+        return False, "trail head does not match the head printed in the report"
+    return True, f"{len(lines)} records verified, closed with status '{last['data'].get('status')}', head {prev[:16]}..."

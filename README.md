@@ -42,14 +42,16 @@ What the financial-sector layer adds on top of a generic EU AI Act check:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -c requirements-lock.txt     # exact, pinned versions
 
-export ANTHROPIC_API_KEY=...                                                       # your key
-export AUDITOR_TRAIL_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # keep it outside the repo
+cp .env.example .env    # then fill in ANTHROPIC_API_KEY and a generated AUDITOR_TRAIL_KEY:
+                        # python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 python -m auditor run samples/credit-scoring --out out/credit-scoring
-python -m auditor verify-trail out/credit-scoring/trail.jsonl
+python -m auditor verify-trail out/credit-scoring/trail.jsonl --head <head printed by the run>
 ```
+
+The CLI reads `.env` itself. It only parses `KEY=VALUE` lines for its own keys and never executes the file, so you don't need to `source` it. Values already set in your environment take precedence.
 
 Without an API key you can still run `python -m auditor run samples/credit-scoring --out out/dry --dry-run`. It writes the exact prompts that would be sent and calls no model. The output is clearly labelled as not an audit result.
 
@@ -66,6 +68,10 @@ my-system/
 ```
 
 `organisation_type` turns on the DNB layer for: `credit_institution`, `bank`, `insurer`, `reinsurer`, `investment_firm`, `payment_institution`, `e_money_institution`, `pension_fund` and `asset_manager`.
+
+**Who writes `system.json`:** the auditor, not the auditee. Its scope fields decide which laws are tested. The report shows the scope facts and the file's hash. If the evidence shows more than `system.json` declares (for example, the documents describe a bank but `organisation_type` says otherwise), the agent raises a "Declared scope is narrower than the evidence shows" finding.
+
+**Input limits:** at most 30 documents, 400 KB per document and 1.5 MB in total. Symbolic links, and anything that resolves outside the input folder, are refused and listed in the report.
 
 ### Sample
 
@@ -89,7 +95,7 @@ my-system/
 | `auditor/findings.py` | Maps results to `finding-schema.json` and validates them |
 | `auditor/report.py` | Markdown report with draft banner and sign-off block |
 | `prompts/` | Classification and assessment prompts (SAAF Prompts pillar) |
-| `regulatory/criteria.json` | Criteria catalogue (SAAF Regulatory pillar); every entry marked `unverified` until checked |
+| `regulatory/criteria.json` | Criteria catalogue (SAAF Regulatory pillar), with sources, verification status and application dates |
 | `schemas/finding-schema.json` | Copy of the SAAF output schema |
 | `tests/` | Offline tests with a fake model, including a malicious/hallucinating one |
 
@@ -102,8 +108,32 @@ python -m pytest -q
 
 ## Observability
 
-- `trail.jsonl` is an append-only, HMAC-chained log of every run: input document hashes, every model call (model, request id, stop reason, tokens), the applicability decision, verifier corrections and the verdict. Check it with `verify-trail`.
-- `report.md` §6 lists every correction the verifier made to the model output.
+- **`trail.jsonl`** is an append-only, HMAC-chained log of every run, including failed runs. It records:
+  - the hashes of the input documents and of `system.json`, plus any refused files;
+  - every model call (model, request id, stop reason, tokens);
+  - the applicability decision and scope check;
+  - the verifier's corrections, the verdict and the hashes of the outputs.
+
+  Every trail ends with a `run_end` record. Its head (the last HMAC) is printed in the report. `verify-trail --head <value>` fails if a record was altered, removed or reordered, or if the end was cut off.
+- **`report.md`**: §6 lists every correction the verifier made to the model output. §4 lists every favourable conclusion for the auditor to confirm.
+
+## Security
+
+Security review on 10 Nov 2026. Every fix has a regression test in `tests/test_security.py`.
+
+| Risk | Control |
+|---|---|
+| Auditee documents steer the model (prompt injection) | Documents are fenced as data. A code-level scan (English and Dutch) raises a separate High finding. |
+| Invented or stitched evidence | Each quote must appear word for word in one document. "..." fragments must be in order and within 300 characters of each other. |
+| Local file exposure via symlinks | Symlinks and paths outside the input folder are refused. |
+| Malicious content in the report | All untrusted text is escaped, so no live HTML, images, links or `javascript:` URLs. |
+| Scope narrowed via `system.json` | Scope facts and file hash are shown in the report; a code-level cross-check against the evidence raises a finding. |
+| Tampered or shortened audit trail | Keyed HMAC chain, a closing record with a record count, and the head printed in the report. |
+| Cost or availability abuse | Caps on document count and size. |
+| Secrets | `.env` is gitignored and parsed, never executed. No keys appear in logs, reports or the trail. |
+| Supply chain | Exact pins plus a lock file. Actions pinned by commit SHA. `pip-audit` runs in CI. Dependabot is on. |
+
+**Residual risk:** the verifier proves that a quote exists, not that it supports the conclusion. Favourable conclusions therefore need auditor confirmation; the report has a checklist for this.
 
 ## Limitations
 
@@ -114,7 +144,8 @@ python -m pytest -q
 
   The requirements remain paraphrases. An auditor still needs to sign off `_source_check.auditor_signoff` in `regulatory/criteria.json`.
 - **It examines documents only.** It does not test the model, compute fairness metrics or inspect logs. A "met" means only that the documents describe the control.
-- **The injection scan is pattern-based and English only.** Fencing the documents remains the main defence.
+- **The injection scan is pattern-based (English and Dutch).** Novel phrasings can slip through; fencing the documents remains the main defence.
+- **Documents are sent to the Anthropic API without PII masking.** Use synthetic or redacted documents until masking exists.
 - **One system per run.** The inventory-wide monitoring and regulatory-update feed from the EU AI Act Compliance Monitor plan are not built yet.
 - **The DNB layer covers the 2019 SAFEST principles only.** Later DNB/AFM publications on AI, EBA loan-origination guidelines and the Dutch AI Act implementation act are not encoded.
 - **SAAF Guard CI check:** rules 1, 2, 3, 7 and 8 are implemented in `auditor/guard.py`. The `saaf-guard` check has not been run on this repo yet. `SAAF-Project/saaf-guard` is private, so public-repo CI cannot clone it with the default token. CI (`.github/workflows/tests.yml`) runs the offline tests and a dry run on every push.

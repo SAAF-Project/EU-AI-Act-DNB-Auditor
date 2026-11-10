@@ -16,6 +16,8 @@ PROMPTS = ROOT / "prompts"
 REQUIRED_SYSTEM_FIELDS = ["id", "name", "organisation", "organisation_type", "role", "intended_purpose"]
 DOC_SUFFIXES = {".md", ".txt"}
 MAX_DOC_BYTES = 400_000
+MAX_DOCS = 30
+MAX_TOTAL_BYTES = 1_500_000
 BATCH = 8
 
 
@@ -27,6 +29,8 @@ class InputError(ValueError):
 class AuditInput:
     system: dict
     documents: dict[str, str]          # name -> text (includes system.json narrative)
+    system_sha256: str = ""
+    skipped: list[str] = field(default_factory=list)   # files refused at load time, with reason
 
     @property
     def corpus(self) -> str:
@@ -47,33 +51,72 @@ class AuditResult:
     verdict: str
     documents: dict[str, str] = field(default_factory=dict)
     calls: list[dict] = field(default_factory=list)
+    scope_facts: list[str] = field(default_factory=list)
+    system_sha256: str = ""
+    skipped: list[str] = field(default_factory=list)
+    trail_head: str = ""
+
+
+def _safe_file(p: Path, root: Path) -> str | None:
+    """Return a reason to refuse `p`, or None. Refuses symlinks and anything resolving outside `root`."""
+    if p.is_symlink():
+        return "symbolic link (refused: could point to files outside the evidence folder)"
+    try:
+        p.resolve(strict=True).relative_to(root)
+    except (ValueError, OSError):
+        return "resolves outside the evidence folder"
+    if not p.is_file():
+        return "not a regular file"
+    return None
 
 
 def load_input(input_dir: Path) -> AuditInput:
+    if input_dir.is_symlink():
+        raise InputError(f"{input_dir} is a symbolic link; pass the real folder.")
+    root = input_dir.resolve()
     sys_path = input_dir / "system.json"
-    if not sys_path.is_file():
+    if not sys_path.exists():
         raise InputError(f"{sys_path} not found")
+    reason = _safe_file(sys_path, root)
+    if reason:
+        raise InputError(f"system.json refused: {reason}")
+    raw = sys_path.read_text(encoding="utf-8")
     try:
-        system = json.loads(sys_path.read_text(encoding="utf-8"))
+        system = json.loads(raw)
     except ValueError as e:
         raise InputError(f"system.json is not valid JSON: {e}") from e
+    if not isinstance(system, dict):
+        raise InputError("system.json must be a JSON object")
     missing = [k for k in REQUIRED_SYSTEM_FIELDS if not system.get(k)]
     if missing:
         raise InputError(f"system.json is missing required fields: {missing}")
 
     narrative = "\n".join(f"{k}: {v}" for k, v in system.items() if isinstance(v, (str, bool, int)))
     documents = {"system.json": narrative}
+    skipped: list[str] = []
+    total = 0
     doc_dir = input_dir / "docs"
-    if doc_dir.is_dir():
+    if doc_dir.is_dir() and not doc_dir.is_symlink():
         for p in sorted(doc_dir.iterdir()):
-            if p.suffix.lower() not in DOC_SUFFIXES or not p.is_file():
+            if p.suffix.lower() not in DOC_SUFFIXES:
                 continue
-            if p.stat().st_size > MAX_DOC_BYTES:
+            reason = _safe_file(p, root)
+            if reason:
+                skipped.append(f"docs/{p.name}: {reason}")
+                continue
+            size = p.stat().st_size
+            if size > MAX_DOC_BYTES:
                 raise InputError(f"{p.name} exceeds {MAX_DOC_BYTES} bytes; split it or extract the relevant part.")
+            total += size
+            if len(documents) > MAX_DOCS or total > MAX_TOTAL_BYTES:
+                raise InputError(f"Evidence exceeds the limits ({MAX_DOCS} documents / {MAX_TOTAL_BYTES} bytes in total); "
+                                 "select the relevant documents.")
             documents[f"docs/{p.name}"] = p.read_text(encoding="utf-8", errors="replace")
+    elif doc_dir.is_symlink():
+        raise InputError("docs/ is a symbolic link; pass the real folder.")
     if len(documents) == 1:
         raise InputError("No evidence documents found in docs/ (.md or .txt).")
-    return AuditInput(system=system, documents=documents)
+    return AuditInput(system=system, documents=documents, system_sha256=sha256_text(raw), skipped=skipped)
 
 
 def _prompt(name: str) -> str:
@@ -85,7 +128,7 @@ def classify(inp: AuditInput, llm: LLM, trail: AuditTrail | None) -> tuple[Class
     result, meta = llm.call(_prompt("classify"), user, Classification)
     notes: list[str] = []
     for t in result.triggers:
-        if not is_grounded(t.trigger_quote, inp.corpus):
+        if not is_grounded(t.trigger_quote, inp.documents):
             notes.append(f"Trigger quote for {t.article} not found verbatim in the documents; treat as unsupported.")
     declared = inp.system.get("role")
     if declared and result.role != declared:
@@ -106,7 +149,7 @@ def _criteria_block(criteria: list[dict]) -> str:
     return "<criteria>\n" + json.dumps(slim, indent=2, ensure_ascii=False) + "\n</criteria>"
 
 
-def verify_assessment(raw: Assessment, criteria: list[dict], corpus: str) -> list[VerifiedCriterion]:
+def verify_assessment(raw: Assessment, criteria: list[dict], corpus: str | dict[str, str]) -> list[VerifiedCriterion]:
     by_id = {c["id"]: c for c in criteria}
     seen: dict[str, VerifiedCriterion] = {}
     for a in raw.assessments:
@@ -151,7 +194,7 @@ def assess(inp: AuditInput, criteria: list[dict], llm: LLM, trail: AuditTrail | 
         raw, meta = llm.call(_prompt("assess"), user, Assessment)
         call = {"step": f"assess[{i // BATCH + 1}]", **meta.__dict__}
         calls.append(call)
-        part = verify_assessment(raw, batch, inp.corpus)
+        part = verify_assessment(raw, batch, inp.documents)
         verified.extend(part)
         if trail:
             trail.append("llm_call", **call)
@@ -184,21 +227,65 @@ def injection_check(inp: AuditInput) -> VerifiedCriterion | None:
     )
 
 
+SCOPE_CRITERION_ID = "SAAF-SCOPE-INTEGRITY"
+
+# (declared fact in system.json, what the evidence shows according to the classification, label)
+_SCOPE_CHECKS = [
+    ("financial_institution", "evidence_indicates_financial_institution",
+     "organisation_type does not mark a financial institution, so DNB SAFEST and DORA were not tested"),
+    ("personal_data", "evidence_indicates_personal_data",
+     "personal_data is not set, so GDPR Art. 22 was not tested"),
+    ("automated_decisions_on_individuals", "evidence_indicates_automated_decisions",
+     "automated_decisions_on_individuals is not set, so GDPR Art. 22 / AI Act Art. 86 were not tested"),
+    ("third_party_provider", "evidence_indicates_third_party_provider",
+     "third_party_provider is empty, so DORA third-party risk was not tested"),
+]
+
+
+def scope_check(system: dict, classification: Classification, fs: set[str]) -> VerifiedCriterion | None:
+    """Flag when system.json declares a narrower scope than the evidence shows (it decides which laws are tested)."""
+    declared = {
+        "financial_institution": "financial_institution" in fs,
+        "personal_data": bool(system.get("personal_data")),
+        "automated_decisions_on_individuals": bool(system.get("automated_decisions_on_individuals")),
+        "third_party_provider": bool(system.get("third_party_provider")),
+    }
+    gaps = [label for key, attr, label in _SCOPE_CHECKS
+            if getattr(classification, attr) and not declared[key]]
+    if not gaps:
+        return None
+    return VerifiedCriterion(
+        criterion_id=SCOPE_CRITERION_ID, framework="Scope integrity",
+        reference="IIA Std 13.3 (engagement scope) / system.json",
+        title="Declared scope is narrower than the evidence shows",
+        status="not_met", evidence_quotes=[],
+        gap="The evidence indicates more than system.json declares: " + "; ".join(gaps) + ".",
+        recommendation=("Have the auditor (not the auditee) confirm the scope fields in system.json and re-run, "
+                        "or document why the narrower scope is justified."),
+        verifier_notes=["Comparison of system.json with the model's reading of the evidence (code-level check)."],
+    )
+
+
 def run(input_dir: Path, llm: LLM, trail: AuditTrail | None = None) -> AuditResult:
     inp = load_input(input_dir)
     integrity = injection_check(inp)
     if trail:
-        trail.append("run_start", system_id=inp.system["id"],
-                     documents={n: sha256_text(t) for n, t in inp.documents.items()})
+        trail.append("run_start", system_id=inp.system["id"], system_json_sha256=inp.system_sha256,
+                     documents={n: sha256_text(t) for n, t in inp.documents.items()},
+                     skipped_files=inp.skipped)
         trail.append("evidence_integrity", injection_passages=len(integrity.evidence_quotes) if integrity else 0)
     classification, cnotes, ccall = classify(inp, llm, trail)
     catalogue = applicability.load_catalogue()
     fs = applicability.facts(inp.system, classification)
     criteria, notes = applicability.select(catalogue, fs)
+    scope = scope_check(inp.system, classification, fs)
     if trail:
-        trail.append("applicability", facts=sorted(fs), criteria=[c["id"] for c in criteria])
+        trail.append("applicability", facts=sorted(fs), criteria=[c["id"] for c in criteria],
+                     scope_mismatch=scope.gap if scope else "")
 
     verified, calls = assess(inp, criteria, llm, trail) if criteria else ([], [])
+    if scope:
+        verified.insert(0, scope)
     if integrity:
         verified.insert(0, integrity)
     statuses = [v.status for v in verified]
@@ -212,6 +299,7 @@ def run(input_dir: Path, llm: LLM, trail: AuditTrail | None = None) -> AuditResu
         system=inp.system, classification=classification, classification_notes=cnotes,
         criteria=verified, notes=notes, findings=findings, verdict=verdict,
         documents=inp.documents, calls=[ccall, *calls],
+        scope_facts=sorted(fs), system_sha256=inp.system_sha256, skipped=inp.skipped,
     )
 
 
