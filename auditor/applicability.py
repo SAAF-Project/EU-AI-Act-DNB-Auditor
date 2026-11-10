@@ -24,7 +24,7 @@ def load_catalogue(path: Path = CATALOGUE_PATH) -> dict:
 
 
 def facts(system: dict, classification: Classification) -> set[str]:
-    f: set[str] = set()
+    f: set[str] = {"ai_system"}
     tiers = set(classification.tiers)
     if tiers & {"high_risk_annex_i", "high_risk_annex_iii"}:
         f.add("tier:high_risk")

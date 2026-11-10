@@ -128,7 +128,7 @@ def verify_assessment(raw: Assessment, criteria: list[dict], corpus: str) -> lis
         seen[a.criterion_id] = VerifiedCriterion(
             criterion_id=c["id"], framework=c["framework"], reference=c["reference"], title=c["title"],
             status=status, evidence_quotes=grounded, gap=a.gap, recommendation=a.recommendation,
-            verifier_notes=notes,
+            verifier_notes=notes, applies_from=c.get("applies_from", ""),
         )
     out = []
     for c in criteria:  # catalogue order; anything the model skipped is inconclusive, never green
@@ -136,6 +136,7 @@ def verify_assessment(raw: Assessment, criteria: list[dict], corpus: str) -> lis
             criterion_id=c["id"], framework=c["framework"], reference=c["reference"], title=c["title"],
             status="inconclusive", evidence_quotes=[], gap="The model returned no assessment for this criterion.",
             recommendation="Assess manually or re-run.", verifier_notes=["Missing from model output."],
+            applies_from=c.get("applies_from", ""),
         ))
     return out
 

@@ -1,0 +1,27 @@
+name: tests
+
+on:
+  push:
+  pull_request:          # no pull_request_target: PR code runs without secrets
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Offline tests (no API key needed)
+        run: python -m pytest -q
+      - name: Dry run on the sample (no model call)
+        run: python -m auditor run samples/credit-scoring --out "$RUNNER_TEMP/dry" --dry-run
+
+# SAAF Guard (SAAF-Project/saaf-guard) is a private repo, so this public repo's
+# Actions cannot clone it with the default token. To enable it, a maintainer can
+# add an org-scoped read token as a secret and copy saaf-guard's workflow here.

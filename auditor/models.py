@@ -61,3 +61,4 @@ class VerifiedCriterion(BaseModel):
     gap: str
     recommendation: str
     verifier_notes: list[str] = []
+    applies_from: str = ""   # ISO date the obligation applies from; "" = unknown / not applicable

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from pathlib import Path
 
 from .models import VerifiedCriterion
@@ -16,7 +17,7 @@ ALWAYS_HIGH = {"Evidence integrity"}
 
 def short_title(c: VerifiedCriterion) -> str:
     """'EU AI Act Art. 14: Human oversight' / 'DNB SAFEST: Fairness' (max 100 chars)."""
-    if "," in c.reference:
+    if c.reference.startswith(("Regulation", "Directive")) and "," in c.reference:
         article = c.reference.split(",", 1)[1].split(" (")[0].strip()
         prefix = f"{c.framework} {article}"
     else:
@@ -44,7 +45,21 @@ STATUS_TEXT = {
 }
 
 
-def build_findings(criteria: list[VerifiedCriterion], owner: str) -> list[dict]:
+STEP_DOWN = {"High": "Medium", "Medium": "Low", "Low": "Low", "Informational": "Informational"}
+
+
+def is_readiness_gap(c: VerifiedCriterion, audit_date: date) -> bool:
+    """True when the obligation does not apply yet on the audit date (e.g. AI Act Annex III duties before 2027-12-02)."""
+    if not c.applies_from:
+        return False
+    try:
+        return date.fromisoformat(c.applies_from) > audit_date
+    except ValueError:
+        return False
+
+
+def build_findings(criteria: list[VerifiedCriterion], owner: str, audit_date: date | None = None) -> list[dict]:
+    audit_date = audit_date or date.today()
     out: list[dict] = []
     for c in criteria:
         r = rating(c)
@@ -52,6 +67,10 @@ def build_findings(criteria: list[VerifiedCriterion], owner: str) -> list[dict]:
             continue
         n = len(out) + 1
         observation = f"{STATUS_TEXT[c.status]}. {c.gap}".strip()
+        if is_readiness_gap(c, audit_date):
+            r = STEP_DOWN[r]
+            observation = (f"Readiness gap: this obligation applies from {c.applies_from} and is not yet in force "
+                           f"on the audit date ({audit_date.isoformat()}); rating lowered one level. {observation}")
         if c.verifier_notes:
             observation += " Verifier: " + " ".join(c.verifier_notes)
         finding = {

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from .findings import is_readiness_gap
 from .guard import sha256_text
 from .pipeline import AuditResult
 
@@ -30,7 +31,8 @@ def render(r: AuditResult) -> str:
         BANNER,
         "",
         f"**Overall result: {r.verdict}**  ",
-        f"Findings: {len(r.findings)} · Criteria assessed: {len(r.criteria)} · Generated: {date.today().isoformat()}",
+        f"Findings: {len(r.findings)} ({sum(1 for f in r.findings if f['observation'].startswith('Readiness gap'))} readiness gaps "
+        f"for obligations not yet in force) · Criteria assessed: {len(r.criteria)} · Generated: {date.today().isoformat()}",
         "",
         "## 1. Scope",
         "",
@@ -78,9 +80,13 @@ def render(r: AuditResult) -> str:
         "| ID | Reference | Criterion | Status | Evidence | Gap |",
         "|---|---|---|---|---|---|",
     ]
+    today = date.today()
     for v in r.criteria:
         ev = "<br>".join(f"\"{cell(q)}\"" for q in v.evidence_quotes[:2]) or "-"
-        lines.append(f"| {v.criterion_id} | {cell(v.reference)} | {cell(v.title)} | **{STATUS_ICON[v.status]}** | {ev} | {cell(v.gap) or '-'} |")
+        status = f"**{STATUS_ICON[v.status]}**"
+        if is_readiness_gap(v, today):
+            status += f"<br>*applies from {v.applies_from}*"
+        lines.append(f"| {v.criterion_id} | {cell(v.reference)} | {cell(v.title)} | {status} | {ev} | {cell(v.gap) or '-'} |")
     lines.append("")
 
     lines += ["## 5. Draft findings", ""]

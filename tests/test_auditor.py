@@ -100,21 +100,39 @@ def test_bank_deploying_high_risk_gets_ai_act_dnb_gdpr_dora():
     system = json.loads((SAMPLE / "system.json").read_text())
     crit, notes = applicability.select(applicability.load_catalogue(), applicability.facts(system, _cls()))
     ids = {c["id"] for c in crit}
-    assert {"AIA-ART9", "AIA-ART14", "AIA-ART26", "AIA-ART27", "DNB-FAIRNESS", "GDPR-ART22", "DORA-TPP"} <= ids
+    assert {"AIA-ART4", "AIA-ART9", "AIA-ART14", "AIA-ART26", "AIA-ART27", "AIA-ART86",
+            "DNB-FAIRNESS", "GDPR-ART22", "DORA-TPP"} <= ids
     assert "AIA-ART50" not in ids
-    assert {n["id"] for n in notes} == {"FIN-SUPERVISOR", "FIN-GOVERNANCE-EQUIVALENCE"}
+    assert {n["id"] for n in notes} == {"FIN-TIMELINE", "FIN-SUPERVISOR", "FIN-GOVERNANCE-EQUIVALENCE"}
 
 
-def test_non_financial_minimal_risk_gets_no_dnb():
+def test_non_financial_minimal_risk_gets_only_ai_literacy():
     system = {"organisation_type": "retailer", "role": "deployer"}
     crit, notes = applicability.select(applicability.load_catalogue(),
                                        applicability.facts(system, _cls(tiers=["minimal_risk"], fria_required=False)))
-    assert crit == [] and notes == []
+    assert [c["id"] for c in crit] == ["AIA-ART4"] and notes == []
 
 
-def test_every_catalogue_entry_is_marked_for_verification():
+def test_every_catalogue_entry_has_status_and_valid_date():
+    from datetime import date
     cat = applicability.load_catalogue()
-    assert all(c["verification_status"] in ("unverified", "verified") for c in cat["criteria"])
+    for c in cat["criteria"]:
+        assert c["verification_status"] in ("unverified", "source-checked", "verified")
+        date.fromisoformat(c["applies_from"])
+    assert cat["_source_check"]["auditor_signoff"] is None or isinstance(cat["_source_check"]["auditor_signoff"], dict)
+
+
+def test_annex_iii_gap_before_dec_2027_is_a_lower_rated_readiness_gap():
+    from datetime import date
+    from auditor.findings import build_findings
+    c = VerifiedCriterion(criterion_id="AIA-ART14", framework="EU AI Act", reference="Regulation (EU) 2024/1689, Art. 14",
+                          title="Human oversight", status="not_met", evidence_quotes=[], gap="No review of declines.",
+                          recommendation="Add review.", applies_from="2027-12-02")
+    before = build_findings([c], "owner", audit_date=date(2026, 11, 10))[0]
+    after = build_findings([c], "owner", audit_date=date(2027, 12, 2))[0]
+    assert before["risk_rating"] == "Medium" and before["observation"].startswith("Readiness gap")
+    assert after["risk_rating"] == "High" and not after["observation"].startswith("Readiness gap")
+    assert validate_finding(before) == []
 
 
 # ---- findings schema ------------------------------------------------------------
@@ -240,6 +258,11 @@ def test_finding_titles_keep_the_article():
     assert short_title(mk("DORA", "Regulation (EU) 2022/2554, Arts. 28-30", "ICT third-party risk")) \
         == "DORA Arts. 28-30: ICT third-party risk"
     assert short_title(mk("DNB SAFEST", "DNB SAFEST - Fairness", "Fairness")) == "DNB SAFEST: Fairness"
+    assert short_title(mk("DNB General principles (2019) - SAFEST", "DNB SAFEST - Accountability (section 4.2, principles 6-8)",
+                          "Accountability")) == "DNB SAFEST: Accountability"
+    for c in applicability.load_catalogue()["criteria"]:   # every catalogue title stays short and readable
+        t = short_title(mk(c["framework"], c["reference"], c["title"]))
+        assert len(t) < 90 and "(" not in t.split(":")[0].replace("Art. 86(1)", ""), t
 
 
 def test_model_failure_raises_instead_of_defaulting():

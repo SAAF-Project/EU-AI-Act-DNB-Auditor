@@ -31,6 +31,8 @@ system.json + docs/*.md            (auditee evidence, treated as untrusted data)
 report.md  ·  findings.json (SAAF schema)  ·  assessment.json  ·  trail.jsonl (HMAC chain)
 ```
 
+**Timeline awareness.** Since the Digital Omnibus on AI (Reg. (EU) 2026/1744), the Annex III high-risk obligations (Arts. 9-15, 26, 27) apply from **2 December 2027** (Art. 113(c)). Before that date the agent reports gaps against these articles as **readiness gaps**, rated one level lower. GDPR, DORA, AI Act Arts. 4 and 5, and the DNB principles already apply and are reported as current gaps.
+
 What the financial-sector layer adds on top of a generic EU AI Act check:
 - The **DNB SAFEST principles** (Soundness, Accountability, Fairness, Ethics, Skills, Transparency) as audit criteria.
 - **Notes for financial institutions:** who the market surveillance authority is (AI Act Art. 74(6)), and AI Act duties that existing financial-sector governance may already cover. These are flagged for the auditor to check, not auto-decided.
@@ -105,10 +107,15 @@ python -m pytest -q
 
 ## Limitations
 
-- **The regulatory catalogue is paraphrased and unverified.** Article numbers and DNB principle summaries come from the build team's knowledge and need an auditor to check them against EUR-Lex and dnb.nl before real use.
+- **The regulatory catalogue is source-checked but not yet auditor-signed.** On 10 Nov 2026 every reference was checked against the official texts:
+  - the AI Act consolidated text as of 27 July 2026, which includes the **Digital Omnibus on AI, Reg. (EU) 2026/1744**;
+  - GDPR and DORA on EUR-Lex;
+  - DNB's 2019 paper on dnb.nl.
+
+  The requirements remain paraphrases. An auditor still needs to sign off `_source_check.auditor_signoff` in `regulatory/criteria.json`.
 - **It examines documents only.** It does not test the model, compute fairness metrics or inspect logs. A "met" means only that the documents describe the control.
 - **The injection scan is pattern-based and English only.** Fencing the documents remains the main defence.
 - **One system per run.** The inventory-wide monitoring and regulatory-update feed from the EU AI Act Compliance Monitor plan are not built yet.
 - **The DNB layer covers the 2019 SAFEST principles only.** Later DNB/AFM publications on AI, EBA loan-origination guidelines and the Dutch AI Act implementation act are not encoded.
-- **SAAF Guard CI check:** rules 1, 2, 3, 7 and 8 are implemented in `auditor/guard.py`. `python -m saaf_guard.check . --history` has not been run on this repo yet.
+- **SAAF Guard CI check:** rules 1, 2, 3, 7 and 8 are implemented in `auditor/guard.py`. The `saaf-guard` check has not been run on this repo yet. `SAAF-Project/saaf-guard` is private, so public-repo CI cannot clone it with the default token. CI (`.github/workflows/tests.yml`) runs the offline tests and a dry run on every push.
 - Documents must be text or Markdown. Convert PDFs first.

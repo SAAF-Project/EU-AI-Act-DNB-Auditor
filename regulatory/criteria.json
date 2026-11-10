@@ -1,7 +1,29 @@
 {
-  "_about": "Criteria catalogue for the EU AI Act + DNB auditor. Requirements are PARAPHRASED summaries for audit scoping, not legal text. Every entry carries verification_status; an auditor must check each reference against the official text (EUR-Lex / dnb.nl) and set it to 'verified' with their name and date before the catalogue is used for a real engagement.",
-  "_version": "0.1.0",
+  "_about": "Criteria catalogue for the EU AI Act + DNB auditor. Requirements are PARAPHRASED summaries for audit scoping, not legal text. verification_status: 'unverified' = not checked; 'source-checked' = reference and wording checked against the official source listed in _sources (see source_check); 'verified' = additionally reviewed and signed off by the responsible auditor (name + date in source_check).",
+  "_version": "0.2.0",
+  "_sources": {
+    "eu_ai_act": "Regulation (EU) 2024/1689, consolidated text CELEX 02024R1689-20260727 (EUR-Lex/Cellar), incorporating the Digital Omnibus on AI, Regulation (EU) 2026/1744 (OJ L 24.7.2026)",
+    "gdpr": "Regulation (EU) 2016/679, CELEX 32016R0679 (no amendments listed on EUR-Lex as of 2026-11-10)",
+    "dora": "Regulation (EU) 2022/2554, CELEX 32022R2554 (no amendments listed on EUR-Lex as of 2026-11-10)",
+    "dnb_safest": "DNB, General principles for the use of Artificial Intelligence in the financial sector (July 2019), https://www.dnb.nl/media/voffsric/general-principles-for-the-use-of-artificial-intelligence-in-the-financial-sector.pdf"
+  },
+  "_source_check": {
+    "date": "2026-11-10",
+    "by": "Claude (AI assistant) against the official texts above; NOT yet reviewed by the responsible auditor",
+    "auditor_signoff": null
+  },
   "criteria": [
+    {
+      "id": "AIA-ART4",
+      "framework": "EU AI Act",
+      "reference": "Regulation (EU) 2024/1689, Art. 4 (as amended by Reg. (EU) 2026/1744)",
+      "title": "AI literacy",
+      "requirement": "Providers and deployers take measures to support the development of AI literacy of their staff and others operating or using AI systems on their behalf, taking into account their knowledge, the context of use and the persons affected. The amended article does not require a guaranteed level of AI literacy for any individual.",
+      "good_evidence": "AI literacy measures (training, guidance) for staff who operate or oversee the system, proportionate to the use context.",
+      "applies_when": "ai_system",
+      "applies_from": "2025-02-02",
+      "verification_status": "source-checked"
+    },
     {
       "id": "AIA-ART5",
       "framework": "EU AI Act",
@@ -10,7 +32,8 @@
       "requirement": "The system does not perform a prohibited practice (e.g. manipulative techniques, exploitation of vulnerabilities, social scoring, untargeted facial-image scraping, emotion recognition at work or in education).",
       "good_evidence": "Documented screening of the use case against Art. 5 with a signed conclusion.",
       "applies_when": "tier:prohibited",
-      "verification_status": "unverified"
+      "applies_from": "2025-02-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART9",
@@ -20,37 +43,41 @@
       "requirement": "A continuous, documented risk management process identifies, evaluates and mitigates foreseeable risks to health, safety and fundamental rights across the lifecycle, including testing against defined metrics.",
       "good_evidence": "Risk register for the AI system, test plan with thresholds, periodic review records.",
       "applies_when": "tier:high_risk",
-      "verification_status": "unverified"
+      "applies_from": "2027-12-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART10",
       "framework": "EU AI Act",
       "reference": "Regulation (EU) 2024/1689, Art. 10",
       "title": "Data and data governance",
-      "requirement": "Training, validation and test data are subject to governance covering relevance, representativeness, errors, completeness and examination for possible biases, with measures to detect and mitigate them.",
+      "requirement": "Training, validation and test data are subject to governance covering relevance, representativeness, errors and completeness, including examination in view of possible biases likely to affect fundamental rights or lead to prohibited discrimination (Art. 10(2)(f)), and measures to detect, prevent and mitigate them (Art. 10(2)(g)).",
       "good_evidence": "Data sheet, bias examination per relevant group, data quality checks.",
       "applies_when": "tier:high_risk",
-      "verification_status": "unverified"
+      "applies_from": "2027-12-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART12",
       "framework": "EU AI Act",
       "reference": "Regulation (EU) 2024/1689, Art. 12 (and Art. 26(6) for deployers)",
       "title": "Record-keeping and logs",
-      "requirement": "The system automatically records events (logs) enabling traceability of its functioning; deployers keep logs under their control for an appropriate period.",
-      "good_evidence": "Logging specification, retention period, sample log extract linked to individual decisions.",
+      "requirement": "The system automatically records events (logs) enabling traceability. Deployers keep logs under their control for a period appropriate to the intended purpose, of at least six months unless other law provides otherwise; deployers that are financial institutions maintain the logs as part of the documentation kept under financial services law (Art. 26(6), second subparagraph).",
+      "good_evidence": "Logging specification, retention period, sample log extract linked to individual decisions, inclusion in the institution's regulatory record-keeping.",
       "applies_when": "tier:high_risk",
-      "verification_status": "unverified"
+      "applies_from": "2027-12-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART13",
       "framework": "EU AI Act",
       "reference": "Regulation (EU) 2024/1689, Art. 13",
-      "title": "Transparency and instructions for use",
+      "title": "Transparency and provision of information to deployers",
       "requirement": "The system is sufficiently transparent for deployers to interpret and use its output appropriately, and comes with instructions for use covering capabilities, limitations, accuracy and intended purpose.",
       "good_evidence": "Provider instructions for use / model card, explanation of outputs available to users.",
       "applies_when": "tier:high_risk",
-      "verification_status": "unverified"
+      "applies_from": "2027-12-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART14",
@@ -60,7 +87,8 @@
       "requirement": "Natural persons with the necessary competence and authority can effectively oversee the system, understand its limits, avoid automation bias, and override or stop its output.",
       "good_evidence": "Assigned oversight roles, override procedure and override statistics, training records.",
       "applies_when": "tier:high_risk",
-      "verification_status": "unverified"
+      "applies_from": "2027-12-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART15",
@@ -70,133 +98,164 @@
       "requirement": "The system achieves and declares appropriate levels of accuracy, robustness and cybersecurity and performs consistently throughout its lifecycle, including resilience to errors and manipulation.",
       "good_evidence": "Declared accuracy metrics, performance monitoring and drift thresholds, security testing.",
       "applies_when": "tier:high_risk",
-      "verification_status": "unverified"
+      "applies_from": "2027-12-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART26",
       "framework": "EU AI Act",
       "reference": "Regulation (EU) 2024/1689, Art. 26",
-      "title": "Deployer obligations",
-      "requirement": "The deployer uses the system according to the instructions for use, assigns human oversight, ensures input data is relevant, monitors operation, keeps logs, and informs affected natural persons that they are subject to a high-risk AI system where required.",
-      "good_evidence": "Deployment procedure referencing provider instructions, monitoring reports, customer information notices.",
+      "title": "Obligations of deployers of high-risk AI systems",
+      "requirement": "The deployer uses the system according to the instructions for use, assigns human oversight, ensures relevant input data, monitors operation (for financial institutions deemed fulfilled by complying with internal-governance rules under financial services law, Art. 26(5) second subparagraph), keeps logs, and informs natural persons subject to Annex III decisions that a high-risk AI system is used (Art. 26(11)).",
+      "good_evidence": "Deployment procedure referencing provider instructions, monitoring within the governance framework, customer information notices.",
       "applies_when": "tier:high_risk AND role:deployer",
-      "verification_status": "unverified"
+      "applies_from": "2027-12-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART27",
       "framework": "EU AI Act",
       "reference": "Regulation (EU) 2024/1689, Art. 27",
       "title": "Fundamental rights impact assessment (FRIA)",
-      "requirement": "Before first use, the deployer performs an assessment of the impact on fundamental rights (affected groups, specific risks of harm, oversight and mitigation measures) and notifies the market surveillance authority of the results.",
-      "good_evidence": "Completed FRIA dated before go-live, notification record.",
+      "requirement": "Prior to deploying the system, deployers that are public bodies or private entities providing public services, and deployers of Annex III point 5(b) and 5(c) systems, assess the impact on fundamental rights (affected groups, specific risks of harm, human oversight and mitigation measures) and notify the market surveillance authority of the results.",
+      "good_evidence": "Completed FRIA dated before deployment, notification record.",
       "applies_when": "fria_required",
-      "verification_status": "unverified"
+      "applies_from": "2027-12-02",
+      "verification_status": "source-checked"
     },
     {
       "id": "AIA-ART50",
       "framework": "EU AI Act",
       "reference": "Regulation (EU) 2024/1689, Art. 50",
-      "title": "Transparency for AI interacting with people / generating content",
+      "title": "Transparency obligations for certain AI systems",
       "requirement": "People are informed that they are interacting with an AI system unless obvious, and synthetic content is marked as artificially generated where required.",
       "good_evidence": "User-facing AI disclosure, content marking approach.",
       "applies_when": "tier:limited_risk_art50",
-      "verification_status": "unverified"
+      "applies_from": "2026-08-02",
+      "verification_status": "source-checked"
+    },
+    {
+      "id": "AIA-ART86",
+      "framework": "EU AI Act",
+      "reference": "Regulation (EU) 2024/1689, Art. 86(1)",
+      "title": "Right to explanation of individual decision-making",
+      "requirement": "A person subject to a deployer decision based on the output of an Annex III high-risk system (except point 2) that has legal or similarly significant adverse effects can obtain clear and meaningful explanations of the role of the AI system in the decision and the main elements of the decision.",
+      "good_evidence": "Explanation procedure for affected persons, template explanation covering the AI's role and main decision factors.",
+      "applies_when": "tier:high_risk AND automated_decisions_on_individuals",
+      "applies_from": "2026-08-02",
+      "verification_status": "source-checked",
+      "note": "Art. 86 sits in Chapter IX (general application date 2 August 2026), but refers to Annex III high-risk systems whose Chapter III obligations apply from 2 December 2027. The auditor should confirm the effective date."
     },
     {
       "id": "DNB-SOUNDNESS",
       "framework": "DNB General principles for the use of AI in the financial sector (2019) - SAFEST",
-      "reference": "DNB SAFEST - Soundness",
+      "reference": "DNB SAFEST - Soundness (section 4.1)",
       "title": "Soundness",
-      "requirement": "AI applications are reliable and accurate, behave predictably, and operate within the institution's risk appetite; model risk is managed proportionally to materiality.",
-      "good_evidence": "Model validation report, inclusion in model risk inventory, performance limits tied to risk appetite.",
+      "requirement": "AI applications are reliable and accurate, behave predictably and operate within the boundaries of applicable rules and regulations (including non-financial rules such as the GDPR); the firm ensures business continuity. DNB calls soundness its primary prudential concern.",
+      "good_evidence": "Model validation report, inclusion in model risk inventory, performance limits tied to risk appetite, continuity arrangements.",
       "applies_when": "financial_institution",
-      "verification_status": "unverified"
+      "applies_from": "2019-07-25",
+      "verification_status": "source-checked"
     },
     {
       "id": "DNB-ACCOUNTABILITY",
       "framework": "DNB General principles for the use of AI in the financial sector (2019) - SAFEST",
-      "reference": "DNB SAFEST - Accountability",
+      "reference": "DNB SAFEST - Accountability (section 4.2, principles 6-8)",
       "title": "Accountability",
-      "requirement": "Responsibility for AI applications and their outcomes is clearly assigned at the appropriate level, including senior management and for outsourced components.",
-      "good_evidence": "Named model owner, governance committee approval, RACI covering vendor components.",
+      "requirement": "Final accountability for AI applications and the management of associated risks is assigned clearly at board of directors level, integrated into the risk management framework, and operationalised towards external stakeholders (including for outsourced components).",
+      "good_evidence": "Board-level accountability, AI in the risk management framework, RACI covering vendor components.",
       "applies_when": "financial_institution",
-      "verification_status": "unverified"
+      "applies_from": "2019-07-25",
+      "verification_status": "source-checked"
     },
     {
       "id": "DNB-FAIRNESS",
       "framework": "DNB General principles for the use of AI in the financial sector (2019) - SAFEST",
-      "reference": "DNB SAFEST - Fairness",
+      "reference": "DNB SAFEST - Fairness (section 4.3, principles 9-10)",
       "title": "Fairness",
-      "requirement": "The institution defines what fair outcomes mean for the application and tests and monitors that AI does not unjustifiably disadvantage groups of customers.",
+      "requirement": "The firm defines and operationalises its concept of fairness for the AI application and reviews the application and its outcomes for unintentional bias, so that no group of customers is inadvertently disadvantaged.",
       "good_evidence": "Fairness definition, group-level outcome testing, monitoring with thresholds.",
       "applies_when": "financial_institution",
-      "verification_status": "unverified"
+      "applies_from": "2019-07-25",
+      "verification_status": "source-checked"
     },
     {
       "id": "DNB-ETHICS",
       "framework": "DNB General principles for the use of AI in the financial sector (2019) - SAFEST",
-      "reference": "DNB SAFEST - Ethics",
+      "reference": "DNB SAFEST - Ethics (section 4.4)",
       "title": "Ethics",
-      "requirement": "AI use is consistent with the institution's ethical values and customers' interests; ethical considerations are part of the approval of AI use cases.",
+      "requirement": "Customers and other stakeholders can trust that they are not mistreated or harmed, directly or indirectly, because of the firm's use of AI; AI use is consistent with the firm's ethical values.",
       "good_evidence": "Ethics review in the use-case approval, link to code of conduct / customer-interest policy.",
       "applies_when": "financial_institution",
-      "verification_status": "unverified"
+      "applies_from": "2019-07-25",
+      "verification_status": "source-checked"
     },
     {
       "id": "DNB-SKILLS",
       "framework": "DNB General principles for the use of AI in the financial sector (2019) - SAFEST",
-      "reference": "DNB SAFEST - Skills",
+      "reference": "DNB SAFEST - Skills (section 4.5)",
       "title": "Skills",
-      "requirement": "Staff, management and board who develop, use or oversee AI have sufficient knowledge of its workings and limitations.",
-      "good_evidence": "Training records for oversight staff and approvers, AI literacy programme.",
+      "requirement": "From the work floor to the boardroom, people understand the strengths and limitations of the AI-enabled systems they work with.",
+      "good_evidence": "Training records for users, overseers, approvers and board; AI literacy programme.",
       "applies_when": "financial_institution",
-      "verification_status": "unverified"
+      "applies_from": "2019-07-25",
+      "verification_status": "source-checked"
     },
     {
       "id": "DNB-TRANSPARENCY",
       "framework": "DNB General principles for the use of AI in the financial sector (2019) - SAFEST",
-      "reference": "DNB SAFEST - Transparency",
+      "reference": "DNB SAFEST - Transparency (section 4.6, principles 16-17)",
       "title": "Transparency",
-      "requirement": "The institution can explain how its AI applications work and how they are used, to supervisors, internal stakeholders and, where relevant, customers; documentation enables traceability.",
-      "good_evidence": "Explainability method, documentation sufficient for a supervisor, customer explanation for adverse decisions.",
+      "requirement": "The firm is transparent internally about its policy and decisions on adopting and using AI, and advances the traceability and explainability of AI-driven decisions and model outcomes, with effort increasing with materiality.",
+      "good_evidence": "AI policy, explainability method, documentation enabling internal audit and supervision.",
       "applies_when": "financial_institution",
-      "verification_status": "unverified"
+      "applies_from": "2019-07-25",
+      "verification_status": "source-checked"
     },
     {
       "id": "GDPR-ART22",
       "framework": "GDPR",
       "reference": "Regulation (EU) 2016/679, Art. 22 (with Arts. 13-15 information duties)",
       "title": "Automated individual decision-making",
-      "requirement": "Decisions based solely on automated processing with legal or similarly significant effects are only taken on a valid legal ground, with safeguards including the right to obtain human intervention, express a view and contest the decision, and meaningful information about the logic involved.",
+      "requirement": "Decisions based solely on automated processing with legal or similarly significant effects are only taken on a valid ground, with safeguards including the right to obtain human intervention, express a view and contest the decision, and meaningful information about the logic involved.",
       "good_evidence": "Legal-ground analysis in the DPIA, human-intervention route for customers, privacy notice explaining the logic.",
       "applies_when": "automated_decisions_on_individuals",
-      "verification_status": "unverified"
+      "applies_from": "2018-05-25",
+      "verification_status": "source-checked"
     },
     {
       "id": "DORA-TPP",
       "framework": "DORA",
       "reference": "Regulation (EU) 2022/2554, Arts. 28-30",
       "title": "ICT third-party risk for the AI provider",
-      "requirement": "The AI system's ICT third-party provider is covered by the institution's third-party risk management: pre-contract assessment, register of information, contractual provisions (audit, access, exit) and exit strategy.",
-      "good_evidence": "Entry in the register of information, due diligence, contract clauses on audit rights and exit.",
+      "requirement": "The AI system's ICT third-party provider is covered by ICT third-party risk management: register of information (Art. 28(3)), assessment before contracting (Art. 28(4)), exit strategies for services supporting critical or important functions (Art. 28(8)), concentration risk assessment (Art. 29) and key contractual provisions including access, inspection and audit rights (Art. 30).",
+      "good_evidence": "Entry in the register of information, pre-contract assessment, contract clauses on audit rights and exit, documented exit strategy.",
       "applies_when": "financial_institution AND third_party_provider",
-      "verification_status": "unverified"
+      "applies_from": "2025-01-17",
+      "verification_status": "source-checked"
     }
   ],
   "financial_sector_notes": [
     {
+      "id": "FIN-TIMELINE",
+      "reference": "Regulation (EU) 2024/1689, Art. 113(c), as amended by Regulation (EU) 2026/1744",
+      "note": "Chapter III Sections 1-3 (incl. Arts. 9-15, 26 and 27) apply to Annex III high-risk systems from 2 December 2027 (Annex I systems: 2 August 2028). Before that date, gaps against these articles are readiness gaps, not current non-compliance; the report labels them accordingly. GDPR, DORA, Arts. 4 and 5 and the DNB principles already apply.",
+      "applies_when": "tier:high_risk",
+      "verification_status": "source-checked"
+    },
+    {
       "id": "FIN-SUPERVISOR",
-      "reference": "Regulation (EU) 2024/1689, Art. 74(6)",
-      "note": "For high-risk AI systems used by financial institutions regulated under Union financial services law, the market surveillance authority is in principle the national financial supervisor. In the Netherlands, confirm the designated authority (AFM/DNB, with the AP in a coordinating role) under the Dutch implementation act. This affects who receives the FRIA notification and serious-incident reports.",
+      "reference": "Regulation (EU) 2024/1689, Art. 74(6)-(7)",
+      "note": "For high-risk AI systems placed on the market, put into service or used by financial institutions regulated by Union financial services law, the market surveillance authority is the national financial supervisor of those institutions, in so far as the use is in direct connection with the provision of those financial services (Art. 74(6)). A Member State may designate another authority, provided coordination is ensured (Art. 74(7)). Confirm the Dutch designation (AFM/DNB/AP) under the national implementation act; it determines who receives the FRIA notification and incident reports.",
       "applies_when": "financial_institution AND tier:high_risk",
-      "verification_status": "unverified"
+      "verification_status": "source-checked"
     },
     {
       "id": "FIN-GOVERNANCE-EQUIVALENCE",
-      "reference": "Regulation (EU) 2024/1689, Arts. 17(4), 26(5), 72(4) (verify exact paragraphs)",
-      "note": "For financial institutions, some AI Act obligations (quality management system, deployer monitoring, post-market monitoring) are deemed fulfilled, wholly or partly, by complying with internal-governance rules under Union financial services law. Before raising a gap on these, check whether existing CRD/Solvency II governance arrangements already cover it.",
+      "reference": "Regulation (EU) 2024/1689, Arts. 17(4), 26(5) 2nd subpara., 26(6) 2nd subpara., 72(4) 2nd subpara.",
+      "note": "For financial institutions subject to internal-governance requirements under Union financial services law: the provider quality management system is deemed fulfilled by those governance rules, except Art. 17(1) points (g), (h) and (i) (Art. 17(4)); the deployer monitoring obligation is deemed fulfilled likewise (Art. 26(5)); logs are kept within the financial-services documentation (Art. 26(6)); and post-market monitoring for Annex III point 5 systems may be integrated into existing systems (Art. 72(4)). Before raising a gap on these points, check the existing CRD/Solvency II governance arrangements.",
       "applies_when": "financial_institution AND tier:high_risk",
-      "verification_status": "unverified"
+      "verification_status": "source-checked"
     }
   ]
 }
