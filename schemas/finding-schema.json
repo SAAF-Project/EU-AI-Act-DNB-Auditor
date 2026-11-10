@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://saafproject.com/schemas/finding-schema.json",
+  "title": "Audit Finding",
+  "description": "A single audit finding produced by an AI audit agent or auditor.",
+  "type": "object",
+  "required": ["id", "title", "risk_rating", "observation", "recommendation"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique finding identifier (e.g. F-01)",
+      "pattern": "^F-[0-9]{2,4}$"
+    },
+    "title": {
+      "type": "string",
+      "description": "Short descriptive title of the finding",
+      "maxLength": 100
+    },
+    "risk_rating": {
+      "type": "string",
+      "description": "Risk severity rating",
+      "enum": ["High", "Medium", "Low", "Informational"]
+    },
+    "control_objective": {
+      "type": "string",
+      "description": "The control objective, standard, or regulatory requirement this finding relates to"
+    },
+    "observation": {
+      "type": "string",
+      "description": "Factual description of what was found"
+    },
+    "root_cause": {
+      "type": "string",
+      "description": "Identified or suspected root cause"
+    },
+    "impact": {
+      "type": "string",
+      "description": "Potential consequences if the finding is not addressed"
+    },
+    "recommendation": {
+      "type": "string",
+      "description": "Recommended corrective action"
+    },
+    "management_response": {
+      "type": "string",
+      "description": "Management's response to the finding"
+    },
+    "target_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Target remediation date (YYYY-MM-DD)"
+    },
+    "owner": {
+      "type": "string",
+      "description": "Name or function responsible for remediation"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Open", "In Progress", "Closed"],
+      "default": "Open"
+    },
+    "ai_assisted": {
+      "type": "boolean",
+      "description": "Whether this finding was identified or drafted with AI assistance",
+      "default": false
+    },
+    "evidence_references": {
+      "type": "array",
+      "description": "List of evidence item references supporting this finding",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

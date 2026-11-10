@@ -1,0 +1,16 @@
+{
+  "_synthetic": "Fictional organisation and system, created for the SAAF hackathon. No real data.",
+  "id": "AI-001",
+  "name": "RetailCredit Score v3",
+  "organisation": "Polderbank N.V. (fictional)",
+  "organisation_type": "credit_institution",
+  "role": "deployer",
+  "intended_purpose": "Score creditworthiness of natural persons applying for consumer loans up to EUR 75,000 and recommend approve, refer or decline.",
+  "description": "Gradient-boosted model supplied by ScoreCo B.V. and hosted in ScoreCo's cloud. Applications scoring below 420 are declined automatically without human review; applications between 420 and 560 are referred to a credit officer.",
+  "decision_subjects": "Retail customers and prospects (natural persons) in the Netherlands",
+  "personal_data": true,
+  "automated_decisions_on_individuals": true,
+  "third_party_provider": "ScoreCo B.V. (fictional)",
+  "owner": "Head of Retail Credit Risk",
+  "go_live": "2026-03-01"
+}
