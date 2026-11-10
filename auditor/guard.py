@@ -34,6 +34,31 @@ def fence(text: str, source: str) -> str:
     return f'<untrusted_document source="{safe_source}">\n{neutralised}\n</untrusted_document>'
 
 
+_INJECTION_PATTERNS = [
+    r"\b(ignore|disregard|forget)\b.{0,30}\b(previous|prior|above|earlier|all)\b.{0,20}\b(instructions?|prompts?|rules?)\b",
+    r"\b(note|message|instructions?)\s+(to|for)\s+(any|the|all)?\s*(ai|llm|model|assistant|agent|audit(ing)?\s+(tool|agent|software)s?)\b",
+    r"\b(ai|llm|model|assistant|agent|audit\s+tool)s?\b.{0,60}\b(mark|rate|score|classify|treat)\b.{0,30}\b(all|every|each)\b.{0,30}\b(as\s+)?(met|compliant|passed|green|approved)\b",
+    r"\bmark\s+(all|every|each)\s+\w+(\s+\w+)?\s+as\s+(met|compliant|passed|green|approved)\b",
+    r"\bdo\s+not\s+(raise|report|flag|include)\s+(any\s+)?(findings?|issues?|gaps?)\b",
+    r"\b(system\s+prompt|you\s+are\s+now\s+(a|an)\b|new\s+instructions\s*:)",
+]
+
+
+def detect_injection(documents: dict[str, str]) -> list[tuple[str, str]]:
+    """Code-level scan for text in auditee documents that tries to instruct an AI tool.
+
+    Returns (document, offending line) pairs. Independent of the model: even if the model is
+    fooled, an attempt to steer the audit is reported.
+    """
+    hits: list[tuple[str, str]] = []
+    for name, text in documents.items():
+        for line in text.splitlines():
+            flat = normalise(line)
+            if flat and any(re.search(p, flat, re.IGNORECASE) for p in _INJECTION_PATTERNS):
+                hits.append((name, flat))
+    return hits
+
+
 # ---- Rule 3: verify quotes against the source --------------------------------
 
 _QUOTE_MAP = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"',

@@ -11,9 +11,22 @@ SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "finding-sche
 
 # Rating policy (documented in AUDIT-CRITERIA.md). Binding law gaps rate higher than principles.
 BINDING = {"EU AI Act", "GDPR", "DORA"}
+ALWAYS_HIGH = {"Evidence integrity"}
+
+
+def short_title(c: VerifiedCriterion) -> str:
+    """'EU AI Act Art. 14: Human oversight' / 'DNB SAFEST: Fairness' (max 100 chars)."""
+    if "," in c.reference:
+        article = c.reference.split(",", 1)[1].split(" (")[0].strip()
+        prefix = f"{c.framework} {article}"
+    else:
+        prefix = c.reference.split(" - ")[0].split(" / ")[0].strip()
+    return f"{prefix}: {c.title}"[:100]
 
 
 def rating(c: VerifiedCriterion) -> str | None:
+    if c.status == "not_met" and c.framework in ALWAYS_HIGH:
+        return "High"
     if c.status == "not_met":
         return "High" if c.framework in BINDING else "Medium"
     if c.status in ("partially_met", "not_evidenced"):
@@ -43,7 +56,7 @@ def build_findings(criteria: list[VerifiedCriterion], owner: str) -> list[dict]:
             observation += " Verifier: " + " ".join(c.verifier_notes)
         finding = {
             "id": f"F-{n:02d}",
-            "title": f"{c.reference.split(',')[0]}: {c.title}"[:100],
+            "title": short_title(c),
             "risk_rating": r,
             "control_objective": f"{c.framework} - {c.reference} - {c.title}",
             "observation": observation,

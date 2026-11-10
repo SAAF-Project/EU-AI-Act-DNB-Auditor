@@ -46,8 +46,8 @@ The two are designed to chain. `system.json` uses the same per-system fields as 
 | Phase | Status | Notes |
 |---|---|---|
 | Plan | Complete | This document |
-| Do | Prototype | Working CLI, 23 offline tests, synthetic credit-scoring sample |
-| Check | Open | Live run on the sample; auditor verifies catalogue references; A1 stress test |
+| Do | Prototype | Working CLI, 27 offline tests, synthetic credit-scoring sample, one passing live run (10 Nov 2026) |
+| Check | In progress | Live run on the sample done; auditor verifies catalogue references; A1 stress test |
 | Act | Open | Merge into, or chain with, the EU AI Act Compliance Monitor; add EBA loan-origination guidelines |
 
 ## 7. Help wanted

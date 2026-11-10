@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import applicability
 from .findings import build_findings
-from .guard import FENCE_RULE, AuditTrail, fence, is_grounded, overall_verdict, sha256_text
+from .guard import FENCE_RULE, AuditTrail, detect_injection, fence, is_grounded, overall_verdict, sha256_text
 from .llm import LLM, LLMError
 from .models import Assessment, Classification, VerifiedCriterion
 
@@ -159,11 +159,37 @@ def assess(inp: AuditInput, criteria: list[dict], llm: LLM, trail: AuditTrail | 
     return verified, calls
 
 
+INJECTION_CRITERION_ID = "SAAF-EVIDENCE-INTEGRITY"
+
+
+def injection_check(inp: AuditInput) -> VerifiedCriterion | None:
+    """Deterministic evidence-integrity check; becomes its own finding when it fires."""
+    hits = detect_injection(inp.documents)
+    if not hits:
+        return None
+    docs = sorted({d for d, _ in hits})
+    return VerifiedCriterion(
+        criterion_id=INJECTION_CRITERION_ID,
+        framework="Evidence integrity",
+        reference="OWASP LLM01 Prompt Injection / IIA Std 14.2",
+        title="Auditee evidence contains instructions aimed at AI audit tools",
+        status="not_met",
+        evidence_quotes=[line for _, line in hits][:5],
+        gap=(f"{len(hits)} passage(s) in {', '.join(docs)} attempt to instruct an AI audit tool. "
+             "This undermines the reliability of the evidence and may indicate an attempt to influence the audit outcome."),
+        recommendation=("Establish who added the passage and why; obtain a clean, authorised version of the document "
+                        "from its owner and re-perform the assessment on that version."),
+        verifier_notes=["Detected by code (pattern scan), independent of the model."],
+    )
+
+
 def run(input_dir: Path, llm: LLM, trail: AuditTrail | None = None) -> AuditResult:
     inp = load_input(input_dir)
+    integrity = injection_check(inp)
     if trail:
         trail.append("run_start", system_id=inp.system["id"],
                      documents={n: sha256_text(t) for n, t in inp.documents.items()})
+        trail.append("evidence_integrity", injection_passages=len(integrity.evidence_quotes) if integrity else 0)
     classification, cnotes, ccall = classify(inp, llm, trail)
     catalogue = applicability.load_catalogue()
     fs = applicability.facts(inp.system, classification)
@@ -172,6 +198,8 @@ def run(input_dir: Path, llm: LLM, trail: AuditTrail | None = None) -> AuditResu
         trail.append("applicability", facts=sorted(fs), criteria=[c["id"] for c in criteria])
 
     verified, calls = assess(inp, criteria, llm, trail) if criteria else ([], [])
+    if integrity:
+        verified.insert(0, integrity)
     statuses = [v.status for v in verified]
     if not classification.tiers:
         statuses.append("inconclusive")
