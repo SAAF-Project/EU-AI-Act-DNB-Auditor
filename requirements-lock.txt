@@ -1,6 +1,6 @@
 # Full pinned environment (pip freeze, 2026-11-10). Install with: pip install -r requirements.txt -c requirements-lock.txt
 annotated-types==0.8.0
-anthropic==2.7.0
+anthropic==2.8.0
 anyio==4.16.0
 docstring_parser==0.18.0
 h11==0.16.0
